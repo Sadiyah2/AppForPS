@@ -1,0 +1,148 @@
+<!-- ... existing code ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Tracking ID Extractor (Online & Offline)</title>
+    <style>
+        /* =========================================================
+           1. CSS VARIABLES & THEME TOKENS (100% Self-Contained)
+<!-- ... existing code ... -->
+        .offline-pill {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background-color: var(--bg-subtle);
+            color: var(--primary);
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+            display: inline-block;
+        }
+
+        .status-dot.is-offline {
+            background-color: #f59e0b;
+        }
+
+        main {
+<!-- ... existing code ... -->
+                    <div class="brand-title">Tracking ID Extractor</div>
+                    <div class="brand-subtitle">Tracking ID သီးသန့်ထုတ်ယူရန်</div>
+                </div>
+            </div>
+            <span id="networkStatusPill" class="offline-pill">
+                <span id="statusDot" class="status-dot"></span>
+                <span id="statusText">Online &amp; Offline Ready</span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+<!-- ... existing code ... -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <footer>
+        Online &amp; Offline HTML App &bull; အင်တာနက်ရှိသည်ဖြစ်စေ မရှိသည်ဖြစ်စေ အမြဲအသုံးပြုနိုင်ပါသည်
+    </footer>
+
+    <!-- =========================================================
+         7. ONLINE/OFFLINE PWA & EXTRACTION JAVASCRIPT LOGIC
+         ========================================================= -->
+    <script>
+        (function () {
+            // Dynamic Manifest & Inline Service Worker for Online/Offline Caching (HTTP/HTTPS)
+            function setupOfflineCapabilities() {
+                try {
+                    const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#4f46e5"/><path d="M50 22L76 36v28L50 78 24 64V36l26-14z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/><path d="M24 36l26 14 26-14M50 50v28" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>`;
+                    const iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
+
+                    const manifest = {
+                        name: 'Tracking ID Extractor',
+                        short_name: 'Tracking ID',
+                        start_url: '.',
+                        display: 'standalone',
+                        background_color: '#f1f5f9',
+                        theme_color: '#4f46e5',
+                        icons: [{ src: iconUrl, sizes: '192x192', type: 'image/svg+xml' }]
+                    };
+                    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+                    const manifestLink = document.createElement('link');
+                    manifestLink.rel = 'manifest';
+                    manifestLink.href = URL.createObjectURL(manifestBlob);
+                    document.head.appendChild(manifestLink);
+
+                    // Register Service Worker when hosted over http/https so it works offline after first visit
+                    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
+                        const swCode = `
+                            const CACHE_NAME = 'tracking-id-extractor-v1';
+                            self.addEventListener('install', (e) => {
+                                self.skipWaiting();
+                                e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll([self.location.href])));
+                            });
+                            self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+                            self.addEventListener('fetch', (e) => {
+                                e.respondWith(
+                                    caches.match(e.request).then((cached) => {
+                                        return cached || fetch(e.request).then((resp) => {
+                                            const copy = resp.clone();
+                                            caches.open(CACHE_NAME).then((c) => c.put(e.request, copy));
+                                            return resp;
+                                        }).catch(() => cached);
+                                    })
+                                );
+                            });
+                        `;
+                        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+                    }
+                } catch (e) {
+                    // Safe fallback for local file:// mode
+                }
+            }
+
+            const networkStatusPill = document.getElementById('networkStatusPill');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            function updateNetworkUI() {
+                if (navigator.onLine) {
+                    statusDot.classList.remove('is-offline');
+                    statusText.textContent = 'Online (Offline Ready)';
+                } else {
+                    statusDot.classList.add('is-offline');
+                    statusText.textContent = 'Offline Mode';
+                }
+            }
+
+            window.addEventListener('online', () => {
+                updateNetworkUI();
+                showToast('အင်တာနက် ပြန်လည်ချိတ်ဆက်မိပါပြီ (Online)');
+            });
+
+            window.addEventListener('offline', () => {
+                updateNetworkUI();
+                showToast('Offline Mode ဖြင့် ဆက်လက်အသုံးပြုနိုင်ပါသည်');
+            });
+
+            const inputText = document.getElementById('inputText');
+            const outputText = document.getElementById('outputText');
+<!-- ... existing code ... -->
+            // Initialize app on load
+            setupOfflineCapabilities();
+            updateNetworkUI();
+            initTodayDate();
+        })();
+    </script>
+</body>
+</html>
